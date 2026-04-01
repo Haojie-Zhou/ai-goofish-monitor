@@ -109,6 +109,8 @@ watch(() => [props.mode, props.initialData, props.defaultValues, props.defaultAc
         AUTO_ACCOUNT_VALUE,
       analyze_images: defaultValues.analyze_images ?? props.initialData.analyze_images ?? true,
       free_shipping: defaultValues.free_shipping ?? props.initialData.free_shipping ?? true,
+      auto_dm_enabled: defaultValues.auto_dm_enabled ?? props.initialData.auto_dm_enabled ?? false,
+      auto_dm_message: defaultValues.auto_dm_message ?? props.initialData.auto_dm_message ?? '',
       new_publish_option:
         defaultValues.new_publish_option || props.initialData.new_publish_option || '__none__',
       region: defaultValues.region || props.initialData.region || '',
@@ -132,6 +134,8 @@ watch(() => [props.mode, props.initialData, props.defaultValues, props.defaultAc
       account_strategy: props.defaultAccount ? 'fixed' : 'auto',
       account_state_file: props.defaultAccount || AUTO_ACCOUNT_VALUE,
       free_shipping: true,
+      auto_dm_enabled: false,
+      auto_dm_message: '',
       new_publish_option: '__none__',
       region: '',
       decision_mode: 'ai',
@@ -430,6 +434,26 @@ function handleSubmit() {
         <div class="col-span-3 space-y-1">
           <TaskRegionSelector v-model="form.region as any" />
           <p class="text-xs text-gray-500">{{ t('tasks.form.regionHint') }}</p>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-4 items-start gap-4 pt-4 border-t">
+        <Label for="auto-dm-enabled" class="text-right pt-2">自动私聊</Label>
+        <div class="col-span-3 space-y-3">
+          <div class="flex items-center gap-2">
+            <Switch id="auto-dm-enabled" v-model="form.auto_dm_enabled" />
+            <span class="text-sm">启用自动私聊（风险自负）</span>
+          </div>
+          <div v-if="form.auto_dm_enabled" class="space-y-1">
+            <Textarea
+              v-model="form.auto_dm_message"
+              placeholder="请输入要发送的私聊消息..."
+              class="min-h-[80px]"
+            />
+            <p class="text-xs text-red-500">
+              ⚠️ 警告：自动私聊功能仅用于学习交流，使用此功能需承担相应风险。请遵守平台规则，避免频繁发送消息导致账号受限。
+            </p>
+          </div>
         </div>
       </div>
     </div>

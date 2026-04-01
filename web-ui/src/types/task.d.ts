@@ -23,6 +23,8 @@ export interface Task {
   decision_mode: 'ai' | 'keyword';
   keyword_rules: string[];
   is_running: boolean;
+  auto_dm_enabled: boolean;
+  auto_dm_message: string;
 }
 
 export type TaskGenerationStatus = 'queued' | 'running' | 'completed' | 'failed';
@@ -73,4 +75,6 @@ export interface TaskGenerateRequest {
   region?: string | null;
   decision_mode?: 'ai' | 'keyword';
   keyword_rules?: string[];
+  auto_dm_enabled?: boolean;
+  auto_dm_message?: string;
 }

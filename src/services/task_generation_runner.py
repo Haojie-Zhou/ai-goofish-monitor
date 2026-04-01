@@ -40,6 +40,8 @@ def build_task_create(req: TaskGenerateRequest, criteria_file: str) -> TaskCreat
         region=req.region,
         decision_mode=req.decision_mode or "ai",
         keyword_rules=req.keyword_rules,
+        auto_dm_enabled=getattr(req, "auto_dm_enabled", False),
+        auto_dm_message=getattr(req, "auto_dm_message", ""),
     )
 
 

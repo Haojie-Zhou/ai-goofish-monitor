@@ -16,6 +16,7 @@ ImageDownloader = Callable[[str, list[str], str], Awaitable[list[str]]]
 AIAnalyzer = Callable[[dict, list[str], str], Awaitable[Optional[dict]]]
 Notifier = Callable[[dict, str], Awaitable[None]]
 Saver = Callable[[dict, str], Awaitable[bool]]
+AutoDmSender = Callable[[dict, str, str], Awaitable[bool]]
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,8 @@ class ItemAnalysisJob:
     seller_id: Optional[str]
     zhima_credit_text: Optional[str]
     registration_duration_text: str
+    auto_dm_enabled: bool = False
+    auto_dm_message: str = ""
 
 
 class ItemAnalysisDispatcher:
@@ -45,6 +48,7 @@ class ItemAnalysisDispatcher:
         ai_analyzer: AIAnalyzer,
         notifier: Notifier,
         saver: Saver,
+        auto_dm_sender: Optional[AutoDmSender] = None,
     ) -> None:
         self._semaphore = asyncio.Semaphore(max(1, concurrency))
         self._skip_ai_analysis = skip_ai_analysis
@@ -53,6 +57,7 @@ class ItemAnalysisDispatcher:
         self._ai_analyzer = ai_analyzer
         self._notifier = notifier
         self._saver = saver
+        self._auto_dm_sender = auto_dm_sender
         self._tasks: set[asyncio.Task] = set()
         self.completed_count = 0
 
@@ -76,7 +81,7 @@ class ItemAnalysisDispatcher:
         record["ai_analysis"] = await self._build_analysis_result(job, record)
         if await self._saver(record, job.keyword):
             self.completed_count += 1
-        await self._notify_if_recommended(item_data, record["ai_analysis"])
+        await self._notify_if_recommended(item_data, record["ai_analysis"], job)
 
     async def _load_seller_info(self, job: ItemAnalysisJob) -> dict:
         seller_info = {}
@@ -164,10 +169,27 @@ class ItemAnalysisDispatcher:
             except Exception as exc:
                 print(f"   [图片] 删除图片文件时出错: {exc}")
 
-    async def _notify_if_recommended(self, item_data: dict, analysis_result: dict) -> None:
+    async def _notify_if_recommended(
+        self, 
+        item_data: dict, 
+        analysis_result: dict,
+        job: Optional[ItemAnalysisJob] = None
+    ) -> None:
         if not analysis_result.get("is_recommended"):
             return
         try:
             await self._notifier(item_data, analysis_result.get("reason", "无"))
         except Exception as exc:
             print(f"   [通知] 发送推荐通知失败: {exc}")
+        
+        # 如果启用了自动私聊，发送私聊消息
+        if job and job.auto_dm_enabled and self._auto_dm_sender:
+            try:
+                item_id = item_data.get("商品ID", "")
+                seller_id = job.seller_id
+                message = job.auto_dm_message
+                if item_id and message:
+                    print(f"   [私聊] 准备发送私聊消息...")
+                    await self._auto_dm_sender(item_data, seller_id, message)
+            except Exception as exc:
+                print(f"   [私聊] 发送私聊失败: {exc}")

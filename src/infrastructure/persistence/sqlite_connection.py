@@ -43,7 +43,9 @@ SCHEMA_STATEMENTS = (
         region TEXT,
         decision_mode TEXT NOT NULL,
         keyword_rules_json TEXT NOT NULL,
-        is_running INTEGER NOT NULL
+        is_running INTEGER NOT NULL,
+        auto_dm_enabled INTEGER NOT NULL DEFAULT 0,
+        auto_dm_message TEXT NOT NULL DEFAULT ''
     )
     """,
     """
@@ -134,6 +136,16 @@ def _apply_pragmas(conn: sqlite3.Connection) -> None:
 def init_schema(conn: sqlite3.Connection) -> None:
     for statement in SCHEMA_STATEMENTS:
         conn.execute(statement)
+    
+    # 迁移：添加自动私聊字段（如果不存在）
+    cursor = conn.execute("PRAGMA table_info(tasks)")
+    columns = [row["name"] for row in cursor.fetchall()]
+    
+    if "auto_dm_enabled" not in columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN auto_dm_enabled INTEGER NOT NULL DEFAULT 0")
+    if "auto_dm_message" not in columns:
+        conn.execute("ALTER TABLE tasks ADD COLUMN auto_dm_message TEXT NOT NULL DEFAULT ''")
+    
     conn.commit()
 
 

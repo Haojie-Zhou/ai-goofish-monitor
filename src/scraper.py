@@ -50,6 +50,7 @@ from src.services.item_analysis_dispatcher import (
     ItemAnalysisDispatcher,
     ItemAnalysisJob,
 )
+from src.services.auto_dm_service import AutoDmService
 from src.services.price_history_service import (
     build_market_reference,
     load_price_snapshots,
@@ -464,6 +465,8 @@ async def scrape_xianyu(task_config: dict, debug_limit: int = 0):
     if new_publish_option == "__none__":
         new_publish_option = ""
     region_filter = (task_config.get("region") or "").strip()
+    auto_dm_enabled = task_config.get("auto_dm_enabled", False)
+    auto_dm_message = task_config.get("auto_dm_message", "")
 
     processed_links = set()
     history_run_id = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -594,6 +597,26 @@ async def scrape_xianyu(task_config: dict, debug_limit: int = 0):
             seller_profile_cache = SellerProfileCache(
                 ttl_seconds=_get_seller_profile_cache_ttl(task_config)
             )
+            
+            # 初始化自动私聊服务
+            auto_dm_service = AutoDmService()
+            
+            # 定义自动私聊回调函数
+            async def auto_dm_sender(item_data: dict, seller_id: Optional[str], message: str) -> bool:
+                dm_page = await context.new_page()
+                try:
+                    item_url = item_data.get("商品链接", "")
+                    item_id = item_data.get("商品ID", "")
+                    return await auto_dm_service.send_dm(
+                        page=dm_page,
+                        item_id=item_id,
+                        seller_id=seller_id,
+                        message=message,
+                        item_url=item_url
+                    )
+                finally:
+                    await dm_page.close()
+            
             analysis_dispatcher = ItemAnalysisDispatcher(
                 concurrency=_get_ai_analysis_concurrency(task_config),
                 skip_ai_analysis=SKIP_AI_ANALYSIS,
@@ -605,6 +628,7 @@ async def scrape_xianyu(task_config: dict, debug_limit: int = 0):
                 ai_analyzer=get_ai_analysis,
                 notifier=send_ntfy_notification,
                 saver=save_to_jsonl,
+                auto_dm_sender=auto_dm_sender if auto_dm_enabled else None,
             )
 
             # 增强反检测脚本（模拟真实移动设备）
@@ -1097,6 +1121,8 @@ async def scrape_xianyu(task_config: dict, debug_limit: int = 0):
                                         seller_id=str(user_id) if user_id else None,
                                         zhima_credit_text=zhima_credit_text,
                                         registration_duration_text=registration_duration_text,
+                                        auto_dm_enabled=auto_dm_enabled,
+                                        auto_dm_message=auto_dm_message,
                                     )
                                 )
 
